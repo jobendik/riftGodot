@@ -2,12 +2,12 @@
 extends RefCounted
 class_name SquadCoordination
 
-var squad_members: Array[FPSAgent] = []
-var squad_leader: FPSAgent
+var squad_members: Array[FullyIntegratedFPSAgent] = []
+var squad_leader: FullyIntegratedFPSAgent
 var formation: String = "wedge"
 var squad_target: GameEntity
 
-func _init(members: Array[FPSAgent]):
+func _init(members: Array[FullyIntegratedFPSAgent]):
 	squad_members = members
 	if not squad_members.is_empty():
 		squad_leader = squad_members[0]
@@ -28,7 +28,7 @@ func coordinate_attack(target: GameEntity) -> void:
 			member.current_target = target
 			# A "suppressive_fire" state or tactic would be needed for full implementation
 			
-func request_support(requesting_agent: FPSAgent) -> void:
+func request_support(requesting_agent: FullyIntegratedFPSAgent) -> void:
 	# Find the nearest available squad member to help
 	var nearest_available = find_nearest_available_member(requesting_agent.global_position)
 	if nearest_available:
@@ -37,8 +37,8 @@ func request_support(requesting_agent: FPSAgent) -> void:
 		var move_goal = MoveToPositionGoal.new(nearest_available, requesting_agent.global_position)
 		nearest_available.think_goal.add_subgoal(move_goal)
 
-func find_nearest_available_member(position: Vector3) -> FPSAgent:
-	var nearest: FPSAgent = null
+func find_nearest_available_member(position: Vector3) -> FullyIntegratedFPSAgent:
+	var nearest: FullyIntegratedFPSAgent = null
 	var min_distance_sq = INF
 	
 	for member in squad_members:

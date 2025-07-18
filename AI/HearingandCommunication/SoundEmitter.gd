@@ -15,13 +15,14 @@ func _process(delta: float):
 	if not is_instance_valid(owner_entity): return
 	
 	# Emit footstep sounds based on velocity
-	var vehicle = owner_entity as Vehicle
-	if vehicle and vehicle.velocity.length() > 0.1:
-		time_since_last_footstep += delta
-		if time_since_last_footstep >= footstep_interval:
-			var loudness = footstep_loudness * (vehicle.velocity.length() / vehicle.max_speed)
-			emit_footstep(loudness)
-			time_since_last_footstep = 0.0
+	if owner_entity is FullyIntegratedFPSAgent:
+		var agent = owner_entity as FullyIntegratedFPSAgent
+		if agent and agent.velocity.length() > 0.1:
+			time_since_last_footstep += delta
+			if time_since_last_footstep >= footstep_interval:
+				var loudness = footstep_loudness * (agent.velocity.length() / agent.movement_speed)
+				emit_footstep(loudness)
+				time_since_last_footstep = 0.0
 
 func emit_footstep(loudness: float):
 	if SoundManager.instance:

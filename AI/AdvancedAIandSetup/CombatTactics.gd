@@ -12,18 +12,18 @@ enum TacticType {
 	SNIPER
 }
 
-var owner_agent: FPSAgent
+var owner_agent: FullyIntegratedFPSAgent
 var current_tactic: TacticType = TacticType.DEFENSIVE
 var tactic_timer: float = 0.0
 var tactic_duration: float = 5.0
 
-func _init(agent: FPSAgent):
+func _init(agent: FullyIntegratedFPSAgent):
 	owner_agent = agent
 
 func select_tactic(situation: Dictionary) -> TacticType:
 	var threat_level = situation.get("threat_level", 0.5)
 	var tactical_advantage = situation.get("tactical_advantage", 0.5)
-	var aggression = owner_agent.get("aggression", 0.5)
+	var aggression = owner_agent.aggression
 
 	# Decision logic for choosing a tactic
 	if threat_level > 0.8 and tactical_advantage < 0.3:
@@ -31,8 +31,10 @@ func select_tactic(situation: Dictionary) -> TacticType:
 	if threat_level < 0.3 and aggression > 0.7:
 		return TacticType.RUSH
 	if tactical_advantage > 0.7:
-		if owner_agent.weapon_system and owner_agent.weapon_system.current_weapon.name == "Sniper":
-			return TacticType.SNIPER
+		if owner_agent.weapon_system and owner_agent.weapon_system.current_weapon_slot:
+			var weapon = owner_agent.weapon_system.current_weapon_slot.weapon
+			if weapon and weapon.weapon_name == "Sniper":
+				return TacticType.SNIPER
 		elif aggression > 0.6:
 			return TacticType.FLANKING
 		else:

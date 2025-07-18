@@ -8,7 +8,7 @@ var current_weapon_slot: WeaponSlot = null
 var max_weapons: int = 4
 
 # Reference to owner agent
-var owner_agent: ModernFPSAgent
+var owner_agent: FullyIntegratedFPSAgent
 
 # Weapon management
 var weapon_switch_cooldown: float = 0.0
@@ -25,7 +25,7 @@ signal weapon_fired(weapon_name: String)
 signal reload_started(weapon_name: String)
 signal reload_completed(weapon_name: String)
 
-func _init(agent: ModernFPSAgent = null):
+func _init(agent: FullyIntegratedFPSAgent = null):
 	owner_agent = agent
 
 func _ready():

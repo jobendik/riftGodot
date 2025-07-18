@@ -11,7 +11,8 @@ var max_search_attempts: int = 3
 
 func enter(owner: GameEntity) -> void:
 	var agent = owner as FullyIntegratedFPSAgent
-	if not agent: return
+	if not agent:
+		return
 	
 	healing_started = false
 	healing_timer = 0.0
@@ -35,7 +36,8 @@ func enter(owner: GameEntity) -> void:
 
 func execute(owner: GameEntity, delta: float) -> void:
 	var agent = owner as FullyIntegratedFPSAgent
-	if not agent: return
+	if not agent:
+		return
 	
 	# If health is full, we're done
 	if agent.health >= agent.max_health * 0.95:
@@ -92,7 +94,7 @@ func execute(owner: GameEntity, delta: float) -> void:
 
 func _find_health_location(agent: FullyIntegratedFPSAgent) -> Vector3:
 	# Look for health pack pickups in the scene
-	var health_packs = get_tree().get_nodes_in_group("health_pack")
+	var health_packs = agent.get_tree().get_nodes_in_group("health_pack")
 	if not health_packs.is_empty():
 		var closest_pack = null
 		var closest_distance = INF
@@ -108,7 +110,7 @@ func _find_health_location(agent: FullyIntegratedFPSAgent) -> Vector3:
 			return closest_pack.global_position
 	
 	# Look for designated healing areas
-	var healing_areas = get_tree().get_nodes_in_group("healing_area")
+	var healing_areas = agent.get_tree().get_nodes_in_group("healing_area")
 	if not healing_areas.is_empty():
 		var closest_area = healing_areas.pick_random() as Node3D
 		if closest_area:

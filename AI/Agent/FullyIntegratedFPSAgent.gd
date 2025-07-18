@@ -1,5 +1,5 @@
 # Fully Integrated AI Agent - Uses same weapon system as player
-extends CharacterBody3D
+extends GameEntity
 class_name FullyIntegratedFPSAgent
 
 # Core Components (same structure as player)
@@ -61,8 +61,7 @@ var is_navigation_finished: bool = true
 # Physics
 var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 
-# UUID for unique identification
-var uuid: String = ""
+# Note: uuid and neighbors are inherited from GameEntity parent class
 
 # Signals
 signal on_death
@@ -144,11 +143,11 @@ func _setup_state_machine():
 	state_machine.add_state("combat", ModernCombatState.new())
 	state_machine.add_state("seek_cover", ModernSeekCoverState.new())
 	state_machine.add_state("reload", ModernReloadState.new())
-	state_machine.add_state("heal", HealState.new())
+	state_machine.add_state("heal", ModernHealState.new())
 	state_machine.add_state("flanking", FlankingState.new())
 	state_machine.add_state("investigate", InvestigateState.new())
 	state_machine.add_state("pickup_weapon", PickupWeaponState.new())
-	state_machine.add_state("dead", DeadState.new())
+	state_machine.add_state("dead", ModernDeadState.new())
 	state_machine.change_state_by_name("patrol")
 
 func _setup_goals():
@@ -162,6 +161,7 @@ func _setup_goals():
 func _setup_connections():
 	if hearing_system:
 		hearing_system.sound_heard.connect(_on_sound_heard)
+		hearing_system.owner_entity = self
 	
 	if vision_system:
 		vision_system.owner_entity = self
@@ -221,7 +221,7 @@ func _update_ai_systems(delta):
 	if think_goal:
 		think_goal.process(delta)
 	
-	if learning_system:
+	if learning_system and current_target:
 		learning_system.adapt_strategy(current_target)
 	
 	if morale_system:
@@ -322,7 +322,7 @@ func take_damage(amount: float, attacker: FullyIntegratedFPSAgent = null):
 	health_system.take_damage(amount)
 	on_damage.emit(amount, attacker)
 	
-	if learning_system:
+	if learning_system and attacker:
 		learning_system.learn_from_damage(attacker, amount)
 	
 	if morale_system and attacker:
@@ -508,10 +508,9 @@ func _evaluate_cover_spot(spot: Vector3) -> float:
 	
 	return score
 
-func handle_message(msg: Message) -> bool:
-	if state_machine.handle_message(msg):
-		return true
-	return false
+func handle_message(msg: Message) -> void:
+	if state_machine:
+		state_machine.handle_message(msg)
 
 func request_backup():
 	if team_id > 0:
@@ -532,7 +531,7 @@ func set_crouching(crouch: bool):
 	navigation_agent.height = 1.2 if crouch else 1.8
 
 # Compatibility methods for existing AI systems
-func get_velocity() -> Vector3:
+func get_agent_velocity() -> Vector3:
 	return velocity
 
 # For compatibility with existing weapon systems

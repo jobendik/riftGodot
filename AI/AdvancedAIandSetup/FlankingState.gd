@@ -6,9 +6,10 @@ var flank_target: GameEntity
 var flank_position: Vector3
 
 func enter(owner: GameEntity) -> void:
-	var agent = owner as FPSAgent
+	var agent = owner as FullyIntegratedFPSAgent
 	if not agent or not is_instance_valid(agent.current_target):
-		agent.state_machine.revert_to_previous_state()
+		if agent:
+			agent.state_machine.revert_to_previous_state()
 		return
 	
 	flank_target = agent.current_target
@@ -21,12 +22,13 @@ func enter(owner: GameEntity) -> void:
 	var flank_side = 1 if randf() > 0.5 else -1
 	flank_position = flank_target.global_position + right * flank_side * 15.0
 	
-	agent.steering_manager.behaviors.clear()
-	agent.steering_manager.add(SeekBehavior.new(flank_position))
+	# Use NavigationAgent3D for movement instead of steering manager
+	agent.set_movement_target(flank_position)
 
 func execute(owner: GameEntity, delta: float) -> void:
-	var agent = owner as FPSAgent
-	if not agent: return
+	var agent = owner as FullyIntegratedFPSAgent
+	if not agent:
+		return
 	
 	# If the target is lost or dead, stop flanking
 	if not is_instance_valid(flank_target) or not flank_target.active:

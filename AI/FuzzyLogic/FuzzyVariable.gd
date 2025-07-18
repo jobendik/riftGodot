@@ -1,6 +1,6 @@
 # Fuzzy Variable
 extends RefCounted
-class_name FuzzyVariable
+class_name AIFuzzyVariable
 
 var name: String
 var sets: Dictionary = {} # String -> FuzzySet

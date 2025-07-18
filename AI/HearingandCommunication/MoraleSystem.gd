@@ -2,7 +2,7 @@
 extends RefCounted
 class_name MoraleSystem
 
-var owner_agent: HumanLikeFPSAgent
+var owner_agent: FullyIntegratedFPSAgent
 var morale: float = 0.7      # General willingness to fight (0=low, 1=high)
 var fear: float = 0.1        # Immediate sense of danger (0=low, 1=high)
 var confidence: float = 0.5  # Belief in one's own success (0=low, 1=high)
@@ -16,7 +16,7 @@ var is_berserk: bool = false
 signal morale_changed(new_morale: float)
 signal emotion_state_changed(state: String)
 
-func _init(agent: HumanLikeFPSAgent):
+func _init(agent: FullyIntegratedFPSAgent):
 	owner_agent = agent
 
 func update(delta: float) -> void:

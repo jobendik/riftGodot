@@ -8,8 +8,9 @@ func _init(obj_pos: Vector3):
 	objective_position = obj_pos
 
 func calculate_desirability(owner: GameEntity) -> float:
-	var agent = owner as FPSAgent
-	if not agent: return 0.0
+	var agent = owner as FullyIntegratedFPSAgent
+	if not agent:
+		return 0.0
 	
 	var desirability = 0.4
 	
@@ -27,7 +28,9 @@ func calculate_desirability(owner: GameEntity) -> float:
 	return clamp(desirability * characterization_bias, 0.0, 1.0)
 
 func set_goal(owner: GameEntity) -> void:
-	var agent = owner as FPSAgent
-	if agent:
-		agent.think_goal.remove_all_subgoals()
-		agent.think_goal.add_subgoal(CaptureObjectiveGoal.new(agent, objective_position))
+	var agent = owner as FullyIntegratedFPSAgent
+	if not agent:
+		return
+	
+	agent.think_goal.remove_all_subgoals()
+	agent.think_goal.add_subgoal(CaptureObjectiveGoal.new(agent, objective_position))

@@ -2,14 +2,14 @@
 extends RefCounted
 class_name EnvironmentalAwareness
 
-var owner_agent: FPSAgent
+var owner_agent: FullyIntegratedFPSAgent
 var known_items: Dictionary = {} # position -> item_type
 var dangerous_areas: Array[Vector3] = []
 var safe_areas: Array[Vector3] = []
 var last_death_positions: Array[Vector3] = []
 var map_knowledge: float = 0.0 # 0-1 how well the agent knows the map
 
-func _init(agent: FPSAgent):
+func _init(agent: FullyIntegratedFPSAgent):
 	owner_agent = agent
 
 func update() -> void:

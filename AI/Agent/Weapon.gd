@@ -11,7 +11,7 @@ class_name Weapon
 var current_ammo: int
 var time_since_last_shot: float = 0.0
 var is_reloading: bool = false
-var weapon_system: WeaponSystem
+var weapon_system: UnifiedAIWeaponSystem
 
 func _ready():
 	current_ammo = max_ammo

@@ -7,12 +7,12 @@ enum MessagePriority { LOW, MEDIUM, HIGH, CRITICAL }
 class TeamMessage extends RefCounted:
 	var type: String
 	var data: Dictionary
-	var sender: FPSAgent
+	var sender: FullyIntegratedFPSAgent
 	var priority: MessagePriority
 	var position: Vector3
 	var timestamp: float
 	
-	func _init(msg_type: String, msg_data: Dictionary, agent: FPSAgent, prio: MessagePriority = MessagePriority.MEDIUM):
+	func _init(msg_type: String, msg_data: Dictionary, agent: FullyIntegratedFPSAgent, prio: MessagePriority = MessagePriority.MEDIUM):
 		type = msg_type
 		data = msg_data
 		sender = agent

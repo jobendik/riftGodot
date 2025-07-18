@@ -1,4 +1,3 @@
-# Custom Goal - Capture Objective
 extends CompositeGoal
 class_name CaptureObjectiveGoal
 
@@ -18,9 +17,10 @@ func activate() -> void:
 	add_subgoal(MoveToPositionGoal.new(owner, objective_position))
 
 func process(delta: float) -> Status:
-	activate_if_inactive()
+	if is_inactive():
+		activate()
 	
-	var agent = owner as FPSAgent
+	var agent = owner as FullyIntegratedFPSAgent
 	if not agent:
 		status = Status.FAILED
 		return status

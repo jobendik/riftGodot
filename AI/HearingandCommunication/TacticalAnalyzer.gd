@@ -2,9 +2,9 @@
 extends RefCounted
 class_name TacticalAnalyzer
 
-var owner_agent: FPSAgent
+var owner_agent: FullyIntegratedFPSAgent
 
-func _init(agent: FPSAgent):
+func _init(agent: FullyIntegratedFPSAgent):
 	owner_agent = agent
 
 func analyze_situation() -> Dictionary:
@@ -33,7 +33,7 @@ func calculate_threat_level() -> float:
 	# Count visible enemies
 	if owner_agent.vision_system:
 		for entity in owner_agent.vision_system.visible_entities:
-			var enemy = entity as FPSAgent
+			var enemy = entity as FullyIntegratedFPSAgent
 			if enemy and enemy.team_id != owner_agent.team_id:
 				enemy_count += 1
 	
@@ -55,8 +55,8 @@ func calculate_tactical_advantage() -> float:
 	advantage += min(count_nearby_allies() * 0.15, 0.3)
 	
 	# Advantage is affected by ammo status
-	if owner_agent.weapon_system and owner_agent.weapon_system.current_weapon:
-		var ammo_ratio = owner_agent.weapon_system.get_current_ammo() / float(owner_agent.weapon_system.current_weapon.max_ammo)
+	if owner_agent.weapon_system and owner_agent.weapon_system.current_weapon_slot:
+		var ammo_ratio = owner_agent.weapon_system.get_current_ammo() / float(owner_agent.weapon_system.current_weapon_slot.weapon.magazine)
 		advantage += (ammo_ratio - 0.5) * 0.2
 	
 	return clamp(advantage, 0.0, 1.0)
@@ -64,7 +64,7 @@ func calculate_tactical_advantage() -> float:
 func count_nearby_allies() -> int:
 	var count = 0
 	for neighbor in owner_agent.neighbors:
-		var ally = neighbor as FPSAgent
+		var ally = neighbor as FullyIntegratedFPSAgent
 		if ally and ally.team_id == owner_agent.team_id:
 			count += 1
 	return count

@@ -9,7 +9,8 @@ var look_around_interval: float = 2.0
 
 func enter(owner: GameEntity) -> void:
 	var agent = owner as FullyIntegratedFPSAgent
-	if not agent: return
+	if not agent:
+		return
 	
 	idle_timer = 0.0
 	look_around_timer = 0.0
@@ -25,7 +26,8 @@ func enter(owner: GameEntity) -> void:
 
 func execute(owner: GameEntity, delta: float) -> void:
 	var agent = owner as FullyIntegratedFPSAgent
-	if not agent: return
+	if not agent:
+		return
 	
 	idle_timer += delta
 	look_around_timer += delta

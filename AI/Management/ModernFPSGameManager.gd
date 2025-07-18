@@ -13,9 +13,9 @@ var navigation_mesh: NavigationMesh
 
 # Agent management
 var entity_manager: EntityManager
-var team_1_agents: Array[ModernFPSAgent] = []
-var team_2_agents: Array[ModernFPSAgent] = []
-var all_agents: Array[ModernFPSAgent] = []
+var team_1_agents: Array[FullyIntegratedFPSAgent] = []
+var team_2_agents: Array[FullyIntegratedFPSAgent] = []
+var all_agents: Array[FullyIntegratedFPSAgent] = []
 
 # Spawn points - should be set up in the scene or generated
 var team_1_spawn_points: Array[Vector3] = []
@@ -146,9 +146,9 @@ func _spawn_agent(team_id: int, agent_index: int):
 		push_error("Agent scene not set in FPSGameManager")
 		return
 	
-	var agent = agent_scene.instantiate() as ModernFPSAgent
+	var agent = agent_scene.instantiate() as FullyIntegratedFPSAgent
 	if not agent:
-		push_error("Agent scene does not contain ModernFPSAgent")
+		push_error("Agent scene does not contain FullyIntegratedFPSAgent")
 		return
 	
 	# Set spawn position
@@ -189,7 +189,7 @@ func _spawn_agent(team_id: int, agent_index: int):
 	
 	print("Spawned agent: ", agent.name, " at position: ", valid_spawn_pos)
 
-func _randomize_agent_personality(agent: ModernFPSAgent):
+func _randomize_agent_personality(agent: FullyIntegratedFPSAgent):
 	# Randomize behavior parameters for variety
 	agent.aggression = randf_range(0.3, 0.9)
 	agent.accuracy = randf_range(0.6, 0.9)
@@ -232,7 +232,7 @@ func _print_game_status():
 		game_time, team_1_alive.size(), team_2_alive.size()
 	])
 
-func _on_agent_death(agent: ModernFPSAgent):
+func _on_agent_death(agent: FullyIntegratedFPSAgent):
 	print("Agent died: ", agent.name)
 	
 	# Schedule respawn
@@ -242,7 +242,7 @@ func _on_agent_death(agent: ModernFPSAgent):
 	if is_instance_valid(agent):
 		_respawn_agent(agent)
 
-func _respawn_agent(agent: ModernFPSAgent):
+func _respawn_agent(agent: FullyIntegratedFPSAgent):
 	if not is_instance_valid(agent):
 		return
 	
@@ -276,7 +276,7 @@ func _respawn_agent(agent: ModernFPSAgent):
 # Squad management functions
 func create_squad(team_id: int, agent_indices: Array[int]) -> SquadCoordination:
 	var team_agents = team_1_agents if team_id == 1 else team_2_agents
-	var squad_members: Array[ModernFPSAgent] = []
+	var squad_members: Array[FullyIntegratedFPSAgent] = []
 	
 	for index in agent_indices:
 		if index < team_agents.size():
@@ -285,10 +285,10 @@ func create_squad(team_id: int, agent_indices: Array[int]) -> SquadCoordination:
 	var squad = SquadCoordination.new(squad_members)
 	return squad
 
-func get_team_agents(team_id: int) -> Array[ModernFPSAgent]:
+func get_team_agents(team_id: int) -> Array[FullyIntegratedFPSAgent]:
 	return team_1_agents if team_id == 1 else team_2_agents
 
-func get_all_active_agents() -> Array[ModernFPSAgent]:
+func get_all_active_agents() -> Array[FullyIntegratedFPSAgent]:
 	return all_agents.filter(func(agent): return agent.health > 0)
 
 # Navigation utility functions
