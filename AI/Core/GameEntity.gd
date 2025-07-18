@@ -1,4 +1,4 @@
-# Base Game Entity - Equivalent to Yuka's GameEntity
+# Base Game Entity - Equivalent to Yuka's GameEntity but extends CharacterBody3D
 extends CharacterBody3D
 class_name GameEntity
 
@@ -42,7 +42,6 @@ func generate_uuid() -> String:
 func handle_message(msg: Message) -> void:
 	# To be implemented in subclasses
 	pass
-
 
 func can_see(target: GameEntity) -> bool:
 	# Basic line-of-sight check

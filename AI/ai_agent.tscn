@@ -1,0 +1,57 @@
+[gd_scene load_steps=10 format=3 uid="uid://b75kqlsye8xk1"]
+
+[ext_resource type="Script" uid="uid://duvf8rp86re0s" path="res://AI/Agent/FullyIntegratedFPSAgent.gd" id="1_cwy7p"]
+[ext_resource type="Script" uid="uid://ds7662pryp4tg" path="res://AI/Core/VisionSystem.gd" id="1_pgn2a"]
+[ext_resource type="Script" uid="uid://i8m7ldsq8vsl" path="res://AI/HearingandCommunication/HearingSystem.gd" id="2_llpv4"]
+[ext_resource type="Script" uid="uid://fedlrmxyqeb0" path="res://AI/Agent/UnifiedAIWeaponSystem.gd" id="3_yyo8f"]
+[ext_resource type="Script" uid="uid://cl6rjfhhom7qm" path="res://AI/Agent/HealthSystem.gd" id="4_48ryc"]
+[ext_resource type="Script" uid="uid://d3n0lb31dihla" path="res://AI/HearingandCommunication/SoundEmitter.gd" id="4_uhiyr"]
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_qlaqx"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_jgsld"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_fu85k"]
+radius = 3.0
+
+[node name="FullyIntegratedFPSAgent" type="CharacterBody3D"]
+script = ExtResource("1_cwy7p")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("CapsuleMesh_qlaqx")
+skeleton = NodePath("../..")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("CapsuleShape3D_jgsld")
+
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
+target_desired_distance = 2.0
+path_max_distance = 10.01
+avoidance_enabled = true
+height = 1.8
+radius = 0.6
+time_horizon_obstacles = 1.5
+max_speed = 5.0
+
+[node name="VisionSystem" type="Node3D" parent="."]
+script = ExtResource("1_pgn2a")
+
+[node name="HearingSystem" type="Node3D" parent="."]
+script = ExtResource("2_llpv4")
+
+[node name="SoundEmitter" type="Node3D" parent="."]
+script = ExtResource("4_uhiyr")
+
+[node name="HealthSystem" type="Node" parent="."]
+script = ExtResource("4_48ryc")
+
+[node name="UnifiedAIWeaponSystem" type="Node3D" parent="."]
+script = ExtResource("3_yyo8f")
+
+[node name="BulletPoint" type="Marker3D" parent="UnifiedAIWeaponSystem"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0.5)
+
+[node name="Area3D" type="Area3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D"]
+shape = SubResource("SphereShape3D_fu85k")

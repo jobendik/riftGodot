@@ -61,7 +61,7 @@ var is_navigation_finished: bool = true
 # Physics
 var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 
-# Note: uuid and neighbors are inherited from GameEntity parent class
+# Note: uuid, neighbors, entity_manager, and active are inherited from GameEntity parent class
 
 # Signals
 signal on_death
@@ -71,7 +71,10 @@ signal target_lost(target: FullyIntegratedFPSAgent)
 signal weapon_picked_up(weapon_name: String)
 
 func _ready():
+	print("DEBUG: Agent ", name, " _ready() called")
 	uuid = _generate_uuid()
+	print("DEBUG: Agent UUID: ", uuid)
+	
 	_initialize_weapon_system()
 	_initialize_navigation()
 	_initialize_ai_systems()
@@ -83,7 +86,12 @@ func _ready():
 	
 	if health_system:
 		health_system.health_depleted.connect(_on_health_depleted)
-		health_system.health_changed.connect(func(current, max): health = current)
+		health_system.health_changed.connect(func(current, max_health): health = current)
+		print("DEBUG: Agent health initialized: ", health_system.current_health, "/", health_system.max_health)
+	else:
+		print("ERROR: No health system found!")
+	
+	print("DEBUG: Agent ", name, " fully initialized with health: ", health)
 
 func _generate_uuid() -> String:
 	return "agent_" + str(Time.get_unix_time_from_system()) + "_" + str(randi())

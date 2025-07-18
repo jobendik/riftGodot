@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Rift AI"
-run/main_scene="res://Example World/Objects/World/world.tscn"
+run/main_scene="res://Example World/Objects/World/main_game.tscn"
 config/features=PackedStringArray("4.4", "Forward Plus")
 config/icon="res://Title.png"
 

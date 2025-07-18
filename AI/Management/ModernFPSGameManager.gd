@@ -7,8 +7,8 @@ class_name ModernFPSGameManager
 @export var respawn_time: float = 5.0
 @export var enable_debug_visualization: bool = true
 
-# Navigation setup
-@onready var navigation_region: NavigationRegion3D = $NavigationRegion3D
+# Navigation setup - made optional
+var navigation_region: NavigationRegion3D = null
 var navigation_mesh: NavigationMesh
 
 # Agent management
@@ -29,6 +29,8 @@ signal agents_spawned
 signal navigation_ready
 
 func _ready():
+	print("DEBUG: ModernFPSGameManager _ready() called")
+	_find_or_create_navigation_region()
 	_initialize_navigation()
 	_initialize_entity_manager()
 	_setup_spawn_points()
@@ -38,30 +40,55 @@ func _ready():
 		# Wait one frame for navigation to initialize
 		await get_tree().process_frame
 		_wait_for_navigation_ready()
+	else:
+		print("WARNING: No navigation region available, spawning without navigation")
+		_spawn_initial_teams()
+
+func _find_or_create_navigation_region():
+	# First try to find NavigationRegion3D in the scene
+	navigation_region = get_node_or_null("NavigationRegion3D")
+	
+	if not navigation_region:
+		# Try to find it in parent (Main scene)
+		navigation_region = get_parent().get_node_or_null("NavigationRegion3D")
+	
+	if not navigation_region:
+		print("DEBUG: Creating new NavigationRegion3D")
+		# Create navigation region if it doesn't exist
+		navigation_region = NavigationRegion3D.new()
+		navigation_region.name = "NavigationRegion3D"
+		get_parent().add_child(navigation_region)
+	else:
+		print("DEBUG: Found existing NavigationRegion3D at: ", navigation_region.get_path())
 
 func _wait_for_navigation_ready():
-	# Check if navigation map is ready
+	print("DEBUG: Waiting for navigation to be ready...")
+	if not navigation_region:
+		push_error("No NavigationRegion3D found!")
+		return
+	
 	var nav_map = navigation_region.get_navigation_map()
 	while NavigationServer3D.map_get_iteration_id(nav_map) == 0:
+		print("DEBUG: Waiting for navigation map to be ready...")
 		await get_tree().process_frame
 	
+	print("DEBUG: Navigation map is ready")
 	navigation_ready.emit()
 	_spawn_initial_teams()
 
 func _initialize_navigation():
 	if not navigation_region:
-		# Create navigation region if it doesn't exist
-		navigation_region = NavigationRegion3D.new()
-		navigation_region.name = "NavigationRegion3D"
-		add_child(navigation_region)
+		print("WARNING: No navigation region available")
+		return
 	
 	# Set up navigation mesh if not already configured
 	if not navigation_region.navigation_mesh:
 		navigation_mesh = NavigationMesh.new()
 		
 		# Configure navigation mesh for FPS gameplay
+		# FIXED: Use consistent cell_height with navigation map (0.25)
 		navigation_mesh.cell_size = 0.25
-		navigation_mesh.cell_height = 0.1
+		navigation_mesh.cell_height = 0.25  # Changed from 0.1 to 0.25
 		navigation_mesh.agent_radius = 0.6
 		navigation_mesh.agent_height = 1.8
 		navigation_mesh.agent_max_climb = 1.5
@@ -82,26 +109,37 @@ func _initialize_navigation():
 		navigation_region.navigation_mesh = navigation_mesh
 		
 		print("Navigation mesh configured for FPS gameplay")
+	else:
+		print("DEBUG: Using existing navigation mesh")
 
 func _initialize_entity_manager():
 	entity_manager = EntityManager.new()
 	add_child(entity_manager)
+	print("DEBUG: Entity manager initialized")
 
 func _setup_spawn_points():
+	print("DEBUG: Setting up spawn points...")
+	
 	# Look for spawn point nodes in the scene
 	var spawn_group_1 = get_tree().get_nodes_in_group("team_1_spawn")
 	var spawn_group_2 = get_tree().get_nodes_in_group("team_2_spawn")
 	
+	print("DEBUG: Found ", spawn_group_1.size(), " team 1 spawn points")
+	print("DEBUG: Found ", spawn_group_2.size(), " team 2 spawn points")
+	
 	for spawn_point in spawn_group_1:
 		if spawn_point is Node3D:
 			team_1_spawn_points.append(spawn_point.global_position)
+			print("DEBUG: Team 1 spawn point at: ", spawn_point.global_position)
 	
 	for spawn_point in spawn_group_2:
 		if spawn_point is Node3D:
 			team_2_spawn_points.append(spawn_point.global_position)
+			print("DEBUG: Team 2 spawn point at: ", spawn_point.global_position)
 	
 	# Generate default spawn points if none found
 	if team_1_spawn_points.is_empty():
+		print("DEBUG: No spawn points found, generating defaults")
 		_generate_default_spawn_points()
 
 func _generate_default_spawn_points():
@@ -125,36 +163,59 @@ func _generate_default_spawn_points():
 			randf_range(-map_size.z * 0.3, map_size.z * 0.3)
 		)
 		team_2_spawn_points.append(spawn_pos)
+	
+	print("DEBUG: Generated ", team_1_spawn_points.size(), " spawn points for Team 1")
+	print("DEBUG: Generated ", team_2_spawn_points.size(), " spawn points for Team 2")
 
 func _spawn_initial_teams():
-	print("Spawning initial teams...")
+	print("DEBUG: Starting team spawn process...")
+	print("DEBUG: Max team size: ", max_team_size)
+	print("DEBUG: Team 1 spawn points: ", team_1_spawn_points.size())
+	print("DEBUG: Team 2 spawn points: ", team_2_spawn_points.size())
 	
 	# Spawn Team 1
 	for i in range(max_team_size):
+		print("DEBUG: Spawning Team 1 agent ", i)
 		_spawn_agent(1, i)
+		print("DEBUG: Team 1 agents count: ", team_1_agents.size())
 	
 	# Spawn Team 2
 	for i in range(max_team_size):
+		print("DEBUG: Spawning Team 2 agent ", i)
 		_spawn_agent(2, i)
+		print("DEBUG: Team 2 agents count: ", team_2_agents.size())
+	
+	print("DEBUG: Final counts - Team 1: ", team_1_agents.size(), " Team 2: ", team_2_agents.size())
+	print("DEBUG: All agents: ", all_agents.size())
 	
 	game_active = true
 	agents_spawned.emit()
 	print("Teams spawned. Game active.")
 
 func _spawn_agent(team_id: int, agent_index: int):
+	print("DEBUG: Attempting to spawn agent for team ", team_id, " index ", agent_index)
+	
 	if not agent_scene:
 		push_error("Agent scene not set in FPSGameManager")
+		print("ERROR: agent_scene is null!")
 		return
+	
+	print("DEBUG: Agent scene is set: ", agent_scene.resource_path)
 	
 	var agent = agent_scene.instantiate() as FullyIntegratedFPSAgent
 	if not agent:
 		push_error("Agent scene does not contain FullyIntegratedFPSAgent")
+		print("ERROR: Failed to instantiate agent or wrong type")
 		return
+	
+	print("DEBUG: Agent instantiated successfully: ", agent.name)
 	
 	# Set spawn position
 	var spawn_points = team_1_spawn_points if team_id == 1 else team_2_spawn_points
 	if spawn_points.is_empty():
 		push_error("No spawn points available for team " + str(team_id))
+		print("ERROR: No spawn points for team ", team_id)
+		agent.queue_free()
 		return
 	
 	var spawn_index = agent_index % spawn_points.size()
@@ -163,20 +224,32 @@ func _spawn_agent(team_id: int, agent_index: int):
 	# Add small random offset to avoid agents spawning on top of each other
 	spawn_pos += Vector3(randf_range(-2, 2), 0, randf_range(-2, 2))
 	
-	# Validate spawn position on navmesh
-	var nav_map = navigation_region.get_navigation_map()
-	var valid_spawn_pos = NavigationServer3D.map_get_closest_point(nav_map, spawn_pos)
-	
-	agent.global_position = valid_spawn_pos
+	# Set basic properties before adding to scene
 	agent.team_id = team_id
 	agent.name = "Agent_Team" + str(team_id) + "_" + str(agent_index)
+	
+	# FIXED: Add to scene tree BEFORE accessing global_position
+	add_child(agent)
+	print("DEBUG: Agent added to scene tree")
+	
+	# Now we can safely set the position
+	if navigation_region:
+		# Validate spawn position on navmesh
+		var nav_map = navigation_region.get_navigation_map()
+		var valid_spawn_pos = NavigationServer3D.map_get_closest_point(nav_map, spawn_pos)
+		agent.global_position = valid_spawn_pos
+		print("DEBUG: Agent positioned at: ", valid_spawn_pos)
+	else:
+		agent.global_position = spawn_pos
+		print("DEBUG: Agent positioned at: ", spawn_pos, " (no navigation)")
 	
 	# Randomize agent personality
 	_randomize_agent_personality(agent)
 	
-	# Add to scene and register
-	add_child(agent)
-	entity_manager.add(agent)
+	# Register with entity manager
+	if entity_manager:
+		entity_manager.add(agent)
+	
 	all_agents.append(agent)
 	
 	if team_id == 1:
@@ -187,7 +260,7 @@ func _spawn_agent(team_id: int, agent_index: int):
 	# Connect death signal for respawning
 	agent.on_death.connect(_on_agent_death.bind(agent))
 	
-	print("Spawned agent: ", agent.name, " at position: ", valid_spawn_pos)
+	print("DEBUG: Spawned agent: ", agent.name, " at position: ", agent.global_position)
 
 func _randomize_agent_personality(agent: FullyIntegratedFPSAgent):
 	# Randomize behavior parameters for variety
@@ -224,9 +297,9 @@ func _update_debug_visualization():
 		_print_game_status()
 
 func _print_game_status():
-	var active_agents = all_agents.filter(func(agent): return agent.health > 0)
-	var team_1_alive = team_1_agents.filter(func(agent): return agent.health > 0)
-	var team_2_alive = team_2_agents.filter(func(agent): return agent.health > 0)
+	var active_agents = all_agents.filter(func(agent): return is_instance_valid(agent) and agent.health > 0)
+	var team_1_alive = team_1_agents.filter(func(agent): return is_instance_valid(agent) and agent.health > 0)
+	var team_2_alive = team_2_agents.filter(func(agent): return is_instance_valid(agent) and agent.health > 0)
 	
 	print("Game Status - Time: %.1f | Team 1: %d alive | Team 2: %d alive" % [
 		game_time, team_1_alive.size(), team_2_alive.size()
@@ -253,12 +326,15 @@ func _respawn_agent(agent: FullyIntegratedFPSAgent):
 	# Add random offset
 	spawn_pos += Vector3(randf_range(-2, 2), 0, randf_range(-2, 2))
 	
-	# Validate on navmesh
-	var nav_map = navigation_region.get_navigation_map()
-	var valid_spawn_pos = NavigationServer3D.map_get_closest_point(nav_map, spawn_pos)
+	if navigation_region:
+		# Validate on navmesh
+		var nav_map = navigation_region.get_navigation_map()
+		var valid_spawn_pos = NavigationServer3D.map_get_closest_point(nav_map, spawn_pos)
+		agent.global_position = valid_spawn_pos
+	else:
+		agent.global_position = spawn_pos
 	
 	# Reset agent
-	agent.global_position = valid_spawn_pos
 	agent.health = agent.max_health
 	agent.current_target = null
 	agent.stress_level = 0.0
@@ -271,7 +347,7 @@ func _respawn_agent(agent: FullyIntegratedFPSAgent):
 	if agent.state_machine:
 		agent.state_machine.change_state_by_name("patrol")
 	
-	print("Respawned agent: ", agent.name, " at position: ", valid_spawn_pos)
+	print("Respawned agent: ", agent.name, " at position: ", agent.global_position)
 
 # Squad management functions
 func create_squad(team_id: int, agent_indices: Array[int]) -> SquadCoordination:
@@ -289,15 +365,21 @@ func get_team_agents(team_id: int) -> Array[FullyIntegratedFPSAgent]:
 	return team_1_agents if team_id == 1 else team_2_agents
 
 func get_all_active_agents() -> Array[FullyIntegratedFPSAgent]:
-	return all_agents.filter(func(agent): return agent.health > 0)
+	return all_agents.filter(func(agent): return is_instance_valid(agent) and agent.health > 0)
 
 # Navigation utility functions
 func is_position_on_navmesh(position: Vector3) -> bool:
+	if not navigation_region:
+		return false
+		
 	var nav_map = navigation_region.get_navigation_map()
 	var closest_point = NavigationServer3D.map_get_closest_point(nav_map, position)
 	return closest_point.distance_to(position) < 2.0
 
 func get_random_navmesh_position(center: Vector3 = Vector3.ZERO, radius: float = 50.0) -> Vector3:
+	if not navigation_region:
+		return center
+		
 	var nav_map = navigation_region.get_navigation_map()
 	
 	# Try to find a valid position
@@ -320,7 +402,7 @@ func set_team_objective(team_id: int, objective_position: Vector3):
 	var team_agents = get_team_agents(team_id)
 	
 	for agent in team_agents:
-		if agent.health > 0:
+		if is_instance_valid(agent) and agent.health > 0:
 			# Add objective goal to agent's evaluators
 			if agent.think_goal:
 				# Clear existing objective evaluators

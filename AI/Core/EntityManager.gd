@@ -30,7 +30,7 @@ func get_neighbors(entity: GameEntity, radius: float) -> Array[GameEntity]:
 	var position = entity.global_position
 	
 	for other in entities:
-		if other != entity and other.global_position.distance_to(position) <= radius:
+		if other != entity and is_instance_valid(other) and other.global_position.distance_to(position) <= radius:
 			result.append(other)
 	
 	return result
@@ -38,6 +38,6 @@ func get_neighbors(entity: GameEntity, radius: float) -> Array[GameEntity]:
 func get_entities_in_region(region: AABB) -> Array[GameEntity]:
 	var result: Array[GameEntity] = []
 	for entity in entities:
-		if region.has_point(entity.global_position):
+		if is_instance_valid(entity) and region.has_point(entity.global_position):
 			result.append(entity)
 	return result
