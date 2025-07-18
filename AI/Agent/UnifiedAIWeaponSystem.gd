@@ -372,6 +372,10 @@ func get_best_weapon_for_distance(distance: float) -> WeaponSlot:
 func get_weapon_slots() -> Array[WeaponSlot]:
 	return weapon_slots.duplicate()
 
+# Get number of weapons currently carried
+func get_weapon_count() -> int:
+	return weapon_slots.size()
+
 # Get current weapon resource
 func get_current_weapon_resource() -> WeaponResource:
 	if current_weapon_slot:

@@ -201,7 +201,7 @@ reserve_ammo = 0
 [node name="ModernFPSGameManager" type="Node3D" parent="."]
 script = ExtResource("1_p432q")
 agent_scene = ExtResource("2_p50al")
-max_team_size = 4
+spawn_human_player = false
 
 [node name="NavigationRegion3D" type="NavigationRegion3D" parent="."]
 navigation_mesh = SubResource("NavigationMesh_qrt6d")
@@ -213,6 +213,8 @@ script = ExtResource("4_p50al")
 
 [node name="Player" parent="." instance=ExtResource("4_k2tge")]
 transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, -116.422, 2.36574, 72.3051)
+sprint_time = 10.0
+walk_speed = 1.0
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = ExtResource("5_qs4ni")
@@ -386,16 +388,16 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -126.706, 0, 123.389)
 [node name="Team2Spawns" type="Node3D" parent="SpawnPoints"]
 
 [node name="Marker3D" type="Marker3D" parent="SpawnPoints/Team2Spawns" groups=["team_2_spawn"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.478, 16.2622, -121.111)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -74.0274, 16.2622, 115.141)
 
 [node name="Marker3D2" type="Marker3D" parent="SpawnPoints/Team2Spawns" groups=["team_2_spawn"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 107.249, -122.614, -58.6854)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 55.5458, -122.614, 272.324)
 
 [node name="Marker3D3" type="Marker3D" parent="SpawnPoints/Team2Spawns" groups=["team_2_spawn"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 113.317, 0, -127.417)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -61.3381, 0, 137.175)
 
 [node name="Marker3D4" type="Marker3D" parent="SpawnPoints/Team2Spawns" groups=["team_2_spawn"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.772, 0, -124.671)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -116.114, 0, 95.7155)
 
 [node name="Pickups" type="Node3D" parent="."]
 

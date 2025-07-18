@@ -11,6 +11,7 @@ var children: Array[GameEntity] = []
 var parent: GameEntity = null
 var components: Dictionary = {}
 var active: bool = true
+var team_id: int = 0  # Team identification for AI system
 
 func _init():
 	uuid = generate_uuid()

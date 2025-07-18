@@ -34,7 +34,6 @@ var is_sprinting: bool = false
 var is_crouching: bool = false
 
 # Agent Properties
-@export var team_id: int = 0
 @export var max_health: float = 100.0
 var health: float = 100.0
 var armor: float = 0.0
@@ -90,6 +89,18 @@ func _ready():
 		print("DEBUG: Agent health initialized: ", health_system.current_health, "/", health_system.max_health)
 	else:
 		print("ERROR: No health system found!")
+	
+	# Debug component check
+	print("DEBUG [", name, "]: Component Check:")
+	print("  - NavigationAgent3D: ", navigation_agent != null)
+	print("  - VisionSystem: ", vision_system != null)
+	print("  - WeaponSystem: ", weapon_system != null)
+	print("  - HealthSystem: ", health_system != null)
+	print("  - HearingSystem: ", hearing_system != null)
+	print("  - SoundEmitter: ", sound_emitter != null)
+	print("  - PickupDetector: ", pickup_detector != null)
+	print("  - StateMachine: ", state_machine != null)
+	print("  - ThinkGoal: ", think_goal != null)
 	
 	print("DEBUG: Agent ", name, " fully initialized with health: ", health)
 
@@ -164,6 +175,8 @@ func _setup_goals():
 	think_goal.add_evaluator(ExploreEvaluator.new())
 	think_goal.add_evaluator(GetHealthEvaluator.new())
 	think_goal.add_evaluator(GetWeaponEvaluator.new())
+	think_goal.add_evaluator(WeaponSeekingEvaluator.new())
+	think_goal.add_evaluator(MapControlEvaluator.new())
 	think_goal.add_evaluator(HelpTeammateEvaluator.new())
 
 func _setup_connections():
@@ -220,6 +233,21 @@ func _physics_process(delta):
 	move_and_slide()
 
 func _update_ai_systems(delta):
+	# Update enemy tracking timer
+	_update_enemy_tracking(delta)
+	
+	# Add debug output every 2 seconds
+	if fmod(Time.get_ticks_msec() / 1000.0, 2.0) < delta:
+		print("DEBUG [", name, "]: State=", state_machine.current_state.get_script().get_global_name() if state_machine and state_machine.current_state else "NO_STATE")
+		print("DEBUG [", name, "]: Vision System=", vision_system != null)
+		print("DEBUG [", name, "]: Current Target=", current_target != null)
+		print("DEBUG [", name, "]: Time since last enemy seen=", time_since_last_enemy_seen)
+		if vision_system:
+			print("DEBUG [", name, "]: Visible Entities=", vision_system.visible_entities.size())
+			for entity in vision_system.visible_entities:
+				if entity is FullyIntegratedFPSAgent:
+					print("  - Sees: ", entity.name, " Team:", entity.team_id, " My Team:", team_id)
+	
 	if vision_system:
 		vision_system.update()
 	
@@ -240,6 +268,32 @@ func _update_ai_systems(delta):
 	
 	_update_stress_level(delta)
 	_update_weapon_selection()
+
+func _update_enemy_tracking(delta: float):
+	var enemy_spotted = false
+	
+	# Check if we can see any enemies
+	if vision_system:
+		for entity in vision_system.visible_entities:
+			var enemy = entity as FullyIntegratedFPSAgent
+			if enemy and enemy.team_id != team_id:
+				enemy_spotted = true
+				time_since_last_enemy_seen = 0.0
+				break
+	
+	# Check if we have a current target
+	if current_target and is_instance_valid(current_target):
+		enemy_spotted = true
+		time_since_last_enemy_seen = 0.0
+	
+	# Update timer if no enemies seen
+	if not enemy_spotted:
+		time_since_last_enemy_seen += delta
+	
+	# Clear target if we haven't seen enemies for too long
+	if time_since_last_enemy_seen > 20.0 and current_target:
+		current_target = null
+		target_lost.emit(current_target)
 
 func _handle_navigation_movement(delta):
 	var next_path_position = navigation_agent.get_next_path_position()
@@ -324,6 +378,8 @@ func _update_weapon_selection():
 		weapon_system.auto_switch_weapon(distance)
 
 func take_damage(amount: float, attacker: FullyIntegratedFPSAgent = null):
+	print("DEBUG [", name, "]: TAKING DAMAGE ", amount, " from ", attacker.name if attacker else "unknown")
+	
 	if not health_system or health <= 0:
 		return
 		
@@ -342,6 +398,7 @@ func take_damage(amount: float, attacker: FullyIntegratedFPSAgent = null):
 		if attacker and not current_target:
 			current_target = attacker
 			target_acquired.emit(attacker)
+			print("DEBUG [", name, "]: ACQUIRED TARGET ", attacker.name, " - SWITCHING TO COMBAT")
 			state_machine.change_state_by_name("combat")
 
 func _on_health_depleted():
@@ -352,19 +409,43 @@ func _on_sound_heard(event: HearingSystem.SoundEvent):
 	match event.type:
 		"gunshot":
 			if event.source and event.source.team_id != team_id:
-				if not current_target and state_machine.current_state.get_script().get_global_name() != "ModernCombatState":
+				# Always investigate gunshots aggressively
+				if not current_target:
 					set_movement_target(event.position)
 					state_machine.change_state_by_name("investigate")
+				elif event.position.distance_to(global_position) < 50.0:
+					# Close gunshot - very high priority
+					set_movement_target(event.position)
+					state_machine.change_state_by_name("investigate")
+				
+				# Increase stress and alertness
+				stress_level = min(stress_level + 0.4, 1.0)
 		
 		"footstep":
 			if event.source and event.source.team_id != team_id:
-				if stress_level < 0.5:
-					stress_level += 0.1
+				# Investigate enemy footsteps if we're not busy
+				if not current_target and event.position.distance_to(global_position) < 30.0:
+					set_movement_target(event.position)
+					state_machine.change_state_by_name("investigate")
+				
+				stress_level = min(stress_level + 0.2, 1.0)
 		
 		"reload":
 			if event.source and event.source.team_id != team_id:
+				# Enemy is reloading - aggressive opportunity
 				if current_target == event.source:
-					aggression = min(aggression + 0.2, 1.0)
+					aggression = min(aggression + 0.3, 1.0)
+				elif event.position.distance_to(global_position) < 40.0:
+					# Close reload sound - investigate
+					set_movement_target(event.position)
+					state_machine.change_state_by_name("investigate")
+		
+		"explosion":
+			# Always investigate explosions
+			if event.position.distance_to(global_position) < 100.0:
+				set_movement_target(event.position)
+				state_machine.change_state_by_name("investigate")
+				stress_level = min(stress_level + 0.5, 1.0)
 
 # Weapon system callbacks
 func _on_weapon_switched(weapon_name: String):

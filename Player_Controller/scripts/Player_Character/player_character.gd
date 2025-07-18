@@ -1,4 +1,4 @@
-extends CharacterBody3D
+extends GameEntity
 
 @onready var camera = %Camera
 @export var subviewport_camera: Camera3D
@@ -63,6 +63,9 @@ var jump_available: bool = true
 var jump_buffer: bool = false
 
 func _ready() -> void:
+	# Set player as Team 1 for AI recognition
+	team_id = 1
+	
 	update_camera_rotation()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	calculate_movement_parameters()

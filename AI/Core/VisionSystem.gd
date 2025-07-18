@@ -3,8 +3,9 @@ extends Node3D
 class_name VisionSystem
 
 @export var fov_degrees: float = 120.0
-@export var range: float = 30.0
+@export var range: float = 100.0  # Increased from 30 to 100 for map-wide detection
 @export var check_visibility: bool = true
+@export var sound_detection_range: float = 150.0  # For detecting gunshots and movement
 var owner_entity: GameEntity
 var memory_system: MemorySystem
 var visible_entities: Array[GameEntity] = []

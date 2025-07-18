@@ -3,9 +3,11 @@ extends Node3D
 class_name ModernFPSGameManager
 
 @export var agent_scene: PackedScene
-@export var max_team_size: int = 8
+@export var player_scene: PackedScene
+@export var max_team_size: int = 4  # Reduced to 4 to accommodate human player
 @export var respawn_time: float = 5.0
 @export var enable_debug_visualization: bool = true
+@export var spawn_human_player: bool = true
 
 # Navigation setup - made optional
 var navigation_region: NavigationRegion3D = null
@@ -173,13 +175,18 @@ func _spawn_initial_teams():
 	print("DEBUG: Team 1 spawn points: ", team_1_spawn_points.size())
 	print("DEBUG: Team 2 spawn points: ", team_2_spawn_points.size())
 	
-	# Spawn Team 1
-	for i in range(max_team_size):
+	# Spawn Team 1 (3 AI agents + 1 human player)
+	var team_1_ai_count = max_team_size - 1 if spawn_human_player else max_team_size
+	for i in range(team_1_ai_count):
 		print("DEBUG: Spawning Team 1 agent ", i)
 		_spawn_agent(1, i)
 		print("DEBUG: Team 1 agents count: ", team_1_agents.size())
 	
-	# Spawn Team 2
+	# Spawn human player for Team 1
+	if spawn_human_player:
+		_spawn_human_player()
+	
+	# Spawn Team 2 (full enemy team)
 	for i in range(max_team_size):
 		print("DEBUG: Spawning Team 2 agent ", i)
 		_spawn_agent(2, i)
@@ -261,6 +268,47 @@ func _spawn_agent(team_id: int, agent_index: int):
 	agent.on_death.connect(_on_agent_death.bind(agent))
 	
 	print("DEBUG: Spawned agent: ", agent.name, " at position: ", agent.global_position)
+
+func _spawn_human_player():
+	print("DEBUG: Spawning human player for Team 1")
+	
+	if not player_scene:
+		print("WARNING: No player scene set, skipping human player spawn")
+		return
+	
+	var human_player = player_scene.instantiate()
+	if not human_player:
+		print("ERROR: Failed to instantiate human player")
+		return
+	
+	# Set spawn position for human player
+	var spawn_pos = team_1_spawn_points[0] if not team_1_spawn_points.is_empty() else Vector3.ZERO
+	spawn_pos += Vector3(randf_range(-3, 3), 0, randf_range(-3, 3))
+	
+	# Set human player properties
+	human_player.name = "HumanPlayer_Team1"
+	
+	# Add to scene
+	add_child(human_player)
+	
+	# Position the player
+	if navigation_region:
+		var nav_map = navigation_region.get_navigation_map()
+		var valid_spawn_pos = NavigationServer3D.map_get_closest_point(nav_map, spawn_pos)
+		human_player.global_position = valid_spawn_pos
+		print("DEBUG: Human player positioned at: ", valid_spawn_pos)
+	else:
+		human_player.global_position = spawn_pos
+		print("DEBUG: Human player positioned at: ", spawn_pos, " (no navigation)")
+	
+	# Register with entity manager if the player is a GameEntity
+	if human_player is GameEntity:
+		human_player.team_id = 1  # Team 1
+		if entity_manager:
+			entity_manager.add(human_player)
+		print("DEBUG: Human player registered with entity manager")
+	
+	print("DEBUG: Human player spawned successfully")
 
 func _randomize_agent_personality(agent: FullyIntegratedFPSAgent):
 	# Randomize behavior parameters for variety

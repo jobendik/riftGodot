@@ -51,7 +51,7 @@ script = ExtResource("3_yyo8f")
 [node name="BulletPoint" type="Marker3D" parent="UnifiedAIWeaponSystem"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0.5)
 
-[node name="Area3D" type="Area3D" parent="."]
+[node name="PickupDetector" type="Area3D" parent="."]
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PickupDetector"]
 shape = SubResource("SphereShape3D_fu85k")
