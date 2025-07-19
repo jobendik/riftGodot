@@ -8,6 +8,7 @@ class_name ModernFPSGameManager
 @export var respawn_time: float = 5.0
 @export var enable_debug_visualization: bool = true
 @export var spawn_human_player: bool = true
+@export var enable_friendly_fire: bool = false
 
 # Navigation setup - made optional
 var navigation_region: NavigationRegion3D = null
@@ -32,6 +33,10 @@ signal navigation_ready
 
 func _ready():
 	print("DEBUG: ModernFPSGameManager _ready() called")
+	
+	# Add to group so agents can find the game manager
+	add_to_group("game_manager")
+	
 	_find_or_create_navigation_region()
 	_initialize_navigation()
 	_initialize_entity_manager()

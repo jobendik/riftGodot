@@ -74,6 +74,8 @@ func _ready():
 	uuid = _generate_uuid()
 	print("DEBUG: Agent UUID: ", uuid)
 	
+	add_to_group("Target")
+	
 	_initialize_weapon_system()
 	_initialize_navigation()
 	_initialize_ai_systems()
@@ -81,7 +83,14 @@ func _ready():
 	_setup_goals()
 	_setup_connections()
 	_setup_pickup_detection()
-	_setup_initial_loadout()
+	# Defer weapon loading to ensure all systems are ready
+	call_deferred("_setup_initial_loadout")
+	
+	collision_layer = 2  # AI agents are on layer 2
+	collision_mask = 3   # Collide with world (layer 1) and other agents (layer 2)
+	
+	# ADD THIS - Set team colors after all initialization
+	_setup_team_colors()
 	
 	if health_system:
 		health_system.health_depleted.connect(_on_health_depleted)
@@ -103,9 +112,32 @@ func _ready():
 	print("  - ThinkGoal: ", think_goal != null)
 	
 	print("DEBUG: Agent ", name, " fully initialized with health: ", health)
-
+	# Add debug test at the end
+	call_deferred("debug_test_systems")
+	
 func _generate_uuid() -> String:
 	return "agent_" + str(Time.get_unix_time_from_system()) + "_" + str(randi())
+
+# ADD THIS NEW FUNCTION
+func _setup_team_colors():
+	var mesh = get_node_or_null("MeshInstance3D")
+	if not mesh:
+		return
+	
+	# Create team-based material
+	var team_material = StandardMaterial3D.new()
+	
+	match team_id:
+		1:
+			team_material.albedo_color = Color.GREEN  # Team 1 = Green (Friends)
+		2:
+			team_material.albedo_color = Color.RED    # Team 2 = Red (Enemies)
+		_:
+			team_material.albedo_color = Color.GRAY   # Neutral/Unknown
+	
+	# Apply the team material
+	mesh.material_override = team_material
+	print("DEBUG [", name, "]: Applied team color for team ", team_id)
 
 func _initialize_weapon_system():
 	if weapon_system:
@@ -199,16 +231,49 @@ func _setup_pickup_detection():
 			pickup_collision.shape = sphere_shape
 
 func _setup_initial_loadout():
-	# Give AI agent initial weapons (same as player system)
+	print("DEBUG [", name, "]: Setting up initial loadout...")
+	
+	# Check if weapon system is ready
+	if not weapon_system:
+		print("ERROR [", name, "]: Weapon system is null!")
+		return
+		
+	print("DEBUG [", name, "]: Weapon system ready: ", weapon_system != null)
+	
+	# Give AI agent initial weapons (use regular weapon resources)
 	# Load weapon resources
-	var pistol = load("res://Player_Controller/scripts/Weapon_State_Machine/Weapon_Resources/blasterN.tres") as WeaponResource
-	var rifle = load("res://Player_Controller/scripts/Weapon_State_Machine/Weapon_Resources/blasterI.tres") as WeaponResource
+	var pistol_path = "res://Player_Controller/scripts/Weapon_State_Machine/Weapon_Resources/blasterN.tres"
+	var rifle_path = "res://Player_Controller/scripts/Weapon_State_Machine/Weapon_Resources/blasterI.tres"
+	
+	print("DEBUG [", name, "]: Loading pistol from: ", pistol_path)
+	var pistol = ResourceLoader.load(pistol_path) as WeaponResource
 	
 	if pistol:
-		weapon_system.add_weapon_from_resource(pistol, pistol.magazine, pistol.max_ammo)
+		print("DEBUG [", name, "]: Pistol loaded successfully: ", pistol.weapon_name)
+		print("DEBUG [", name, "]: Pistol damage: ", pistol.damage)
+		print("DEBUG [", name, "]: Pistol magazine: ", pistol.magazine)
+		var success = weapon_system.add_weapon_from_resource(pistol, pistol.magazine, pistol.max_ammo)
+		print("DEBUG [", name, "]: Pistol add success: ", success)
+	else:
+		print("ERROR [", name, "]: Failed to load pistol resource from: ", pistol_path)
 	
-	if rifle and randf() > 0.5:  # 50% chance to have rifle
-		weapon_system.add_weapon_from_resource(rifle, rifle.magazine, rifle.max_ammo)
+	if randf() > 0.5:  # 50% chance to have rifle
+		print("DEBUG [", name, "]: Loading rifle from: ", rifle_path)
+		var rifle = ResourceLoader.load(rifle_path) as WeaponResource
+		
+		if rifle:
+			print("DEBUG [", name, "]: Rifle loaded successfully: ", rifle.weapon_name)
+			print("DEBUG [", name, "]: Rifle damage: ", rifle.damage)
+			print("DEBUG [", name, "]: Rifle magazine: ", rifle.magazine)
+			var success = weapon_system.add_weapon_from_resource(rifle, rifle.magazine, rifle.max_ammo)
+			print("DEBUG [", name, "]: Rifle add success: ", success)
+		else:
+			print("ERROR [", name, "]: Failed to load rifle resource from: ", rifle_path)
+	
+	print("DEBUG [", name, "]: Weapon count after setup: ", weapon_system.get_weapon_count())
+	if weapon_system.current_weapon_slot:
+		print("DEBUG [", name, "]: Current weapon: ", weapon_system.current_weapon_slot.weapon.weapon_name)
+		print("DEBUG [", name, "]: Current weapon can fire: ", weapon_system.can_fire())
 
 func _physics_process(delta):
 	# Don't process if navigation map isn't ready
@@ -378,11 +443,19 @@ func _update_weapon_selection():
 		weapon_system.auto_switch_weapon(distance)
 
 func take_damage(amount: float, attacker: FullyIntegratedFPSAgent = null):
-	print("DEBUG [", name, "]: TAKING DAMAGE ", amount, " from ", attacker.name if attacker else "unknown")
-	
 	if not health_system or health <= 0:
 		return
-		
+	
+	# Check for friendly fire
+	if attacker and attacker.team_id == team_id:
+		# Same team - check if friendly fire is enabled
+		var game_manager = get_tree().get_first_node_in_group("game_manager")
+		if game_manager and not game_manager.enable_friendly_fire:
+			print("DEBUG [", name, "]: Blocked friendly fire from ", attacker.name)
+			return
+	
+	print("DEBUG [", name, "]: TAKING DAMAGE ", amount, " from ", attacker.name if attacker else "unknown")
+	
 	health_system.take_damage(amount)
 	on_damage.emit(amount, attacker)
 	
@@ -395,7 +468,7 @@ func take_damage(amount: float, attacker: FullyIntegratedFPSAgent = null):
 	
 	if health > 0:
 		stress_level = min(stress_level + 0.3, 1.0)
-		if attacker and not current_target:
+		if attacker and attacker.team_id != team_id and not current_target:
 			current_target = attacker
 			target_acquired.emit(attacker)
 			print("DEBUG [", name, "]: ACQUIRED TARGET ", attacker.name, " - SWITCHING TO COMBAT")
@@ -624,5 +697,17 @@ func get_agent_velocity() -> Vector3:
 	return velocity
 
 # For compatibility with existing weapon systems
-func Hit_Successful(damage: float, direction: Vector3 = Vector3.ZERO, position: Vector3 = Vector3.ZERO):
-	take_damage(damage)
+func Hit_Successful(damage: float, direction: Vector3 = Vector3.ZERO, position: Vector3 = Vector3.ZERO, attacker: FullyIntegratedFPSAgent = null):
+	take_damage(damage, attacker)
+
+func debug_test_systems():
+	print("=== DEBUG TEST for ", name, " ===")
+	print("Health System: ", health_system != null, " Health: ", health if health_system else "N/A")
+	print("Weapon System: ", weapon_system != null)
+	if weapon_system:
+		print("  Weapon Count: ", weapon_system.get_weapon_count())
+		print("  Current Weapon: ", weapon_system.current_weapon_slot.weapon.weapon_name if weapon_system.current_weapon_slot else "None")
+		print("  Can Fire: ", weapon_system.can_fire())
+	print("In Target Group: ", is_in_group("Target"))
+	print("Collision Layer: ", collision_layer)
+	print("===========================")

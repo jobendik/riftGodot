@@ -93,7 +93,21 @@ func check_pass_through(collider: Node3D, rid: RID)-> bool:
 func Hit_Scan_damage(Collider, Direction, Position, _damage):
 	if Collider.is_in_group("Target") and Collider.has_method("Hit_Successful"):
 		Hit_Successfull.emit()
-		Collider.Hit_Successful(_damage, Direction, Position)
+		
+		# Get the shooter from metadata
+		var shooter = get_meta("shooter", null)
+		
+		# Debug print to verify shooter is set
+		if shooter:
+			print("DEBUG: Projectile hit by ", shooter.name if shooter.has("name") else "Unknown shooter")
+		else:
+			print("DEBUG: Projectile has no shooter metadata!")
+		
+		# Call Hit_Successful with attacker information
+		if shooter:
+			Collider.Hit_Successful(_damage, Direction, Position, shooter)
+		else:
+			Collider.Hit_Successful(_damage, Direction, Position)
 
 
 func Load_Decal(_pos,_normal):

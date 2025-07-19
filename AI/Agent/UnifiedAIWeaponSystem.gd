@@ -18,6 +18,10 @@ var fire_cooldown: float = 0.0
 # Bullet point for projectile spawning (like player system)
 @onready var bullet_point: Marker3D = $BulletPoint
 
+# Visual weapon holder
+var weapon_holder: Node3D
+var current_weapon_model: Node3D = null
+
 # Signals matching player weapon system
 signal weapon_switched(weapon_name: String)
 signal ammo_changed(current: int, max: int)
@@ -33,8 +37,15 @@ func _ready():
 	if not bullet_point:
 		bullet_point = Marker3D.new()
 		bullet_point.name = "BulletPoint"
-		bullet_point.position = Vector3(0, 1.6, 0.5)  # Roughly chest height, slightly forward
+		bullet_point.position = Vector3(0, 1.6, 1.5)  # Chest height, further forward to avoid self-collision
 		add_child(bullet_point)
+	
+	# Create weapon holder for visual models
+	weapon_holder = Node3D.new()
+	weapon_holder.name = "WeaponHolder"
+	weapon_holder.position = Vector3(0.3, 1.4, -0.3)  # Position to the side like holding a weapon
+	weapon_holder.rotation.y = deg_to_rad(-90)  # Rotate to face forward
+	add_child(weapon_holder)
 
 func _process(delta):
 	# Update cooldowns
@@ -78,10 +89,78 @@ func switch_to_weapon_slot(weapon_slot: WeaponSlot) -> bool:
 	current_weapon_slot = weapon_slot
 	weapon_switch_cooldown = 0.5  # AI weapon switch cooldown
 	
+	# Update visual weapon model
+	_update_weapon_model()
+	
 	weapon_switched.emit(current_weapon_slot.weapon.weapon_name)
 	ammo_changed.emit(current_weapon_slot.current_ammo, current_weapon_slot.reserve_ammo)
 	
 	return true
+
+# Update visual weapon model
+func _update_weapon_model():
+	# Remove current weapon model if exists
+	if current_weapon_model:
+		current_weapon_model.queue_free()
+		current_weapon_model = null
+	
+	if not current_weapon_slot or not current_weapon_slot.weapon:
+		return
+	
+	# Try to load weapon model from weapon drop scene
+	if current_weapon_slot.weapon.weapon_drop:
+		var weapon_pickup_scene = current_weapon_slot.weapon.weapon_drop.instantiate()
+		
+		# Look for the weapon model inside the pickup scene
+		var mesh_instance = weapon_pickup_scene.get_node_or_null("MeshInstance3D")
+		if not mesh_instance and weapon_pickup_scene.get_child_count() > 0:
+			# Try to find any MeshInstance3D in children
+			for child in weapon_pickup_scene.get_children():
+				if child is MeshInstance3D:
+					mesh_instance = child
+					break
+		
+		if mesh_instance:
+			# Create a new mesh instance for the weapon model
+			current_weapon_model = MeshInstance3D.new()
+			current_weapon_model.mesh = mesh_instance.mesh
+			current_weapon_model.material_override = mesh_instance.material_override
+			
+			# Copy transform from the pickup
+			if mesh_instance.get_parent() == weapon_pickup_scene:
+				current_weapon_model.transform = mesh_instance.transform
+			
+			weapon_holder.add_child(current_weapon_model)
+			
+			# Adjust weapon position and scale for AI
+			current_weapon_model.scale = Vector3.ONE * 0.8  # Slightly smaller for AI
+			
+			# Weapon-specific positioning
+			match current_weapon_slot.weapon.weapon_name.to_lower():
+				"blaster_n", "pistol":
+					current_weapon_model.position = Vector3(0, 0, 0)
+					current_weapon_model.rotation = Vector3(0, 0, 0)
+				"blasteri", "rifle":
+					current_weapon_model.position = Vector3(0, 0, -0.1)
+					current_weapon_model.rotation = Vector3(0, 0, 0)
+				"blasterm", "shotgun":
+					current_weapon_model.position = Vector3(0, 0, -0.15)
+					current_weapon_model.rotation = Vector3(0, 0, 0)
+				_:
+					current_weapon_model.position = Vector3(0, 0, 0)
+					current_weapon_model.rotation = Vector3(0, 0, 0)
+		
+		# Clean up the instantiated pickup scene
+		weapon_pickup_scene.queue_free()
+	else:
+		# Fallback: Try to load weapon model directly from weapon models folder
+		var weapon_model_path = "res://Player_Controller/Weapon_Models/" + current_weapon_slot.weapon.weapon_name + ".glb"
+		if ResourceLoader.exists(weapon_model_path):
+			var weapon_scene = load(weapon_model_path)
+			if weapon_scene:
+				current_weapon_model = weapon_scene.instantiate()
+				weapon_holder.add_child(current_weapon_model)
+				current_weapon_model.scale = Vector3.ONE * 0.8
 
 # Switch to weapon by name
 func switch_to_weapon_by_name(weapon_name: String) -> bool:
@@ -151,39 +230,59 @@ func fire_at(target_position: Vector3) -> bool:
 	
 	return true
 
-# Fire projectile using the same system as player
+# Fire projectile using AI-specific projectile system
 func _fire_projectile(target_position: Vector3, weapon_resource: WeaponResource):
-	if not weapon_resource.projectile_to_load:
-		return
+	print("DEBUG: Firing projectile from ", owner_agent.name, " at target: ", target_position)
 	
-	# Instantiate projectile (same as player system)
-	var projectile = weapon_resource.projectile_to_load.instantiate() as Projectile
+	# Always use AI projectile for AI agents
+	var ai_projectile_scene = load("res://Player_Controller/Spawnable_Objects/Projectiles_To_Load/ai_hitscan_projectile.tscn")
+	if not ai_projectile_scene:
+		print("ERROR: Failed to load AI projectile scene!")
+		return
+		
+	# Instantiate AI projectile
+	var projectile = ai_projectile_scene.instantiate() as Projectile
 	if not projectile:
+		print("ERROR: Failed to instantiate AI projectile")
 		return
 	
-	# Set projectile position and rotation
-	projectile.global_position = bullet_point.global_position
-	projectile.global_rotation = owner_agent.global_rotation
+	# IMPORTANT: Set the projectile's shooter BEFORE adding to scene
+	projectile.set_meta("shooter", owner_agent)
 	
-	# Add to scene
+	# Add to scene first (needed for global_position to work correctly)
 	get_tree().current_scene.add_child(projectile)
+	
+	# Set projectile position and rotation AFTER adding to scene
+	projectile.global_position = bullet_point.global_position
+	
+	# Calculate direction to target for proper rotation
+	var direction_to_target = (target_position - bullet_point.global_position).normalized()
+	
+	# Look at the target position
+	projectile.look_at(target_position, Vector3.UP)
 	
 	# Calculate spread for AI (reduced for better accuracy)
 	var spread = Vector2.ZERO
 	if owner_agent:
-		var accuracy_spread = (1.0 - owner_agent.accuracy) * 0.05  # Much tighter spread than player
+		var accuracy_spread = (1.0 - owner_agent.accuracy) * 50.0  # Spread in pixels
 		spread = Vector2(
 			randf_range(-accuracy_spread, accuracy_spread),
 			randf_range(-accuracy_spread, accuracy_spread)
 		)
 	
-	# Fire projectile
+	# Fire projectile with proper damage value
+	var damage = weapon_resource.damage if weapon_resource.damage > 0 else 10  # Default damage if not set
+	print("DEBUG: Firing with damage: ", damage, " spread: ", spread, " range: ", weapon_resource.fire_range)
+	
+	# Call _Set_Projectile to trigger the firing
 	projectile._Set_Projectile(
-		weapon_resource.damage,
+		damage,
 		spread,
 		weapon_resource.fire_range,
 		bullet_point.global_position
 	)
+	
+	print("DEBUG: Projectile fired successfully")
 
 # Reload current weapon
 func reload() -> bool:
@@ -289,6 +388,10 @@ func drop_current_weapon() -> WeaponPickUp:
 		switch_to_weapon_slot(weapon_slots[0])
 	else:
 		current_weapon_slot = null
+		# Clear weapon model if no weapons left
+		if current_weapon_model:
+			current_weapon_model.queue_free()
+			current_weapon_model = null
 	
 	return weapon_drop
 

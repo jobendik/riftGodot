@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://bai7xhitscan"]
+
+[ext_resource type="Script" path="res://Player_Controller/Spawnable_Objects/Projectiles_To_Load/ai_hitscan_projectile.gd" id="1_ai001"]
+
+[node name="AIHitscanProjectile" type="Node3D"]
+script = ExtResource("1_ai001")
+Projectile_Type = "Hitscan"
+Display_Debug_Decal = true

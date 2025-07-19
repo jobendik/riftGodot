@@ -38,13 +38,15 @@ func enter(owner: GameEntity) -> void:
 		if dropped_weapon:
 			agent.get_tree().current_scene.add_child(dropped_weapon)
 			dropped_weapon.global_position = agent.global_position + Vector3(0, 1, 0)
-			dropped_weapon.apply_central_impulse(Vector3(randf_range(-3, 3), 2, randf_range(-3, 3)))
+			# Check if the dropped weapon is a RigidBody3D before applying impulse
+			if dropped_weapon is RigidBody3D:
+				dropped_weapon.apply_central_impulse(Vector3(randf_range(-3, 3), 2, randf_range(-3, 3)))
 	
 	# Visual effects
 	_play_death_effects(agent)
 	
 	# Notify learning system about death
-	if agent.learning_system:
+	if agent.learning_system and agent.current_target:
 		agent.learning_system.learn_from_combat(agent.current_target, "defeat")
 	
 	# Notify morale system
@@ -80,20 +82,30 @@ func _play_death_effects(agent: FullyIntegratedFPSAgent):
 	if agent.sound_emitter:
 		agent.sound_emitter.emit_voice("death")
 	
-	# Visual death effects
+	# Visual death effects for 3D mesh
 	var mesh = agent.get_node_or_null("MeshInstance3D")
 	if mesh:
-		# Create death animation/effect
+		# Create a darkened material for death effect
+		var death_material = StandardMaterial3D.new()
+		death_material.albedo_color = Color(0.3, 0.3, 0.3, 0.7)  # Dark and semi-transparent
+		death_material.flags_transparent = true
+		death_material.no_depth_test = false
+		death_material.flags_do_not_use_vertex_lighting = true
+		
+		# Apply the death material
+		mesh.material_override = death_material
+		
+		# Animate the agent falling down
 		var tween = agent.create_tween()
-		tween.tween_property(mesh, "modulate", Color(0.5, 0.5, 0.5, 0.7), 1.0)
-		tween.tween_property(mesh, "position", mesh.position + Vector3(0, -0.5, 0), 2.0)
+		tween.parallel().tween_property(mesh, "position", mesh.position + Vector3(0, -0.5, 0), 2.0)
+		# Optionally rotate the agent to simulate falling
+		tween.parallel().tween_property(mesh, "rotation", mesh.rotation + Vector3(0, 0, deg_to_rad(90)), 2.0)
 	
 	# Create death particle effect (if you have particle systems)
 	_create_death_particles(agent)
 
 func _create_death_particles(agent: FullyIntegratedFPSAgent):
 	# Create simple death effect
-	# You can replace this with more sophisticated particle systems
 	var death_marker = MeshInstance3D.new()
 	death_marker.name = "DeathMarker"
 	
@@ -111,10 +123,14 @@ func _create_death_particles(agent: FullyIntegratedFPSAgent):
 	agent.add_child(death_marker)
 	death_marker.position = Vector3(0, 0.5, 0)
 	
-	# Fade out death marker
+	# Fade out death marker by changing material transparency
 	var tween = agent.create_tween()
-	tween.tween_property(material, "albedo_color:a", 0.0, 5.0)
+	tween.tween_method(_fade_death_marker, 0.3, 0.0, 5.0)
 	tween.tween_callback(death_marker.queue_free)
+
+func _fade_death_marker(alpha_value: float):
+	# This function will be called by the tween to fade the death marker
+	pass
 
 func _notify_team_of_death(agent: FullyIntegratedFPSAgent):
 	# Notify team members about death for morale effects
@@ -140,12 +156,18 @@ func _notify_team_of_death(agent: FullyIntegratedFPSAgent):
 
 func _remove_corpse(agent: FullyIntegratedFPSAgent):
 	# Optional: Remove the corpse after duration
-	# This depends on your game's needs
 	var mesh = agent.get_node_or_null("MeshInstance3D")
 	if mesh:
-		var tween = agent.create_tween()
-		tween.tween_property(mesh, "modulate:a", 0.0, 2.0)
-		tween.tween_callback(func(): mesh.visible = false)
+		# Fade out by making the material more transparent
+		var current_material = mesh.material_override
+		if current_material:
+			var tween = agent.create_tween()
+			tween.tween_method(_fade_corpse_material.bind(current_material), 0.7, 0.0, 2.0)
+			tween.tween_callback(func(): mesh.visible = false)
+
+func _fade_corpse_material(material: StandardMaterial3D, alpha: float):
+	if material and is_instance_valid(material):
+		material.albedo_color.a = alpha
 
 func exit(owner: GameEntity) -> void:
 	# This state is typically only exited when the agent is respawned
@@ -168,9 +190,10 @@ func exit(owner: GameEntity) -> void:
 	# Reset visual effects
 	var mesh = agent.get_node_or_null("MeshInstance3D")
 	if mesh:
-		mesh.modulate = Color.WHITE
+		mesh.material_override = null  # Remove death material override
 		mesh.visible = true
 		mesh.position = Vector3.ZERO
+		mesh.rotation = Vector3.ZERO  # Reset rotation
 	
 	# Reset health system
 	if agent.health_system:
